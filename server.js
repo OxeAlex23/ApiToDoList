@@ -5,6 +5,7 @@ import mongoose from 'mongoose';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import UserTasks  from './modules/UserTasks.js';
+import { checkToken } from './middleware/auth.js';
 import cors from 'cors';
 
 const User = UserTasks;
@@ -17,7 +18,7 @@ app.get('/', (req, res) => {
     res.status(200).json({msg: 'servidor rodando'});
 })
 
-app.get('/:id', async (req, res) => {
+app.get('/:id', checkToken ,async (req, res) => {
     const idUser = req.params.id;
     const user = await User.findById(idUser, '-password');
     const tasks = user.tasks
