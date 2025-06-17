@@ -17,6 +17,14 @@ app.get('/', (req, res) => {
     res.status(200).json({msg: 'servidor rodando'});
 })
 
+app.get('/:id', async (req, res) => {
+    const idUser = req.params.id;
+    const user = await User.findById(idUser, '-password');
+    const tasks = user.tasks
+
+    res.status(200).json({task: tasks});
+})
+
 app.post('/register', async (req, res) => {
     const { name, email, password, birthdate } = req.body;
 
@@ -112,7 +120,7 @@ app.patch('/createTasks/:id', async (req, res) => {
 
     try {
         
-    const user = await User.findById(idUser)
+    const user = await User.findById(idUser, '-password')
     if (!tasks) {
         return res.status(400).json({msg: 'campo não pode estar vazio!'})
     }
@@ -138,7 +146,7 @@ app.put('/editTasks/:id', async (req, res) => {
 
     try {
         console.log(strJson)
-        const user = await User.findById(idUser);
+        const user = await User.findById(idUser, '-password');
 
         if (!user) {
             return res.status(404).json({msg: 'usuário não encontrado!'})
