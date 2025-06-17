@@ -4,7 +4,10 @@ import mongoose from "mongoose";
     name: String,
     email: String,
     password: String,
-    tasks: String,
+    tasks: {
+    type:  [String],
+    default: [], 
+    },
     birthdate: String
 })
 
