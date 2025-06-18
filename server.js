@@ -114,7 +114,7 @@ app.post('/login', async (req, res) => {
 })
 
 
-app.patch('/createTasks/:id', async (req, res) => {
+app.patch('/createTasks/:id', checkToken , async (req, res) => {
     const { tasks: newTasks } = req.body;
     const idUser = req.params.id;
 
@@ -178,6 +178,33 @@ app.put('/editTask/:id/:index', async (req, res) => {
         console.error(err);
         res.status(500).json({ msg: 'Erro ao atualizar tarefa', error: err.message });
     }
+});
+
+app.delete('/deleteTask/:id/:index', async (req, res) => {
+    const userId = req.params.id;
+    const index = parseInt(req.params.index);
+
+    try {
+        const user = await User.findById(userId, '-password');
+
+        if (!user) {
+            return res.status(404).json({msg: 'usuário não encontrado!'});
+        }
+
+        if(isNaN(index) || index < 0 || index >= user.tasks.length) {
+            return res.status(400).json({msg: 'index inválido!'});
+        }
+
+        user.tasks.splice(index, 1);
+
+        await user.save();
+
+        res.status(200).json({msg: 'task excluida com sucesso!'});
+    } catch (err) {
+        console.error('erro ao deletar tarefa', err);
+    }
+
+
 });
 
 const DbPassword = process.env.DB_PASSWORD;
