@@ -180,7 +180,7 @@ app.put('/editTask/:id/:index', async (req, res) => {
     }
 });
 
-app.delete('/deleteTask/:id/:index', async (req, res) => {
+app.delete('/deleteTask/:id/:index', checkToken , async (req, res) => {
     const userId = req.params.id;
     const index = parseInt(req.params.index);
 
