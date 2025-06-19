@@ -5,7 +5,15 @@ import mongoose from "mongoose";
     email: String,
     password: String,
     tasks: {
-    type:  [String],
+    type:  [
+        {
+            description: String,
+            checked: {
+                type: Boolean,
+                default: false
+            }
+        }
+    ],
     default: [], 
     },
     birthdate: String

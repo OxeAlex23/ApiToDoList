@@ -54,7 +54,7 @@ app.post('/register', async (req, res) => {
 
 
     const user = new User({
-        name, email, password: passwordHash, tasks, birthdate
+        name, email, password: passwordHash, birthdate
     });
 
     try {
@@ -111,7 +111,29 @@ app.post('/login', async (req, res) => {
         console.error(err)
         res.status(400).json({ msg: 'erro ao logar!' });
     }
-})
+});
+
+app.post('/addTask/:userId', async (req, res) => {
+    const { description } = req.body;
+    const { userId } = req.params;
+
+    if (!description || description.trim() === '') {
+        return res.status(400).json({ msg: 'Descrição da tarefa é obrigatória' });
+    }
+
+    try {
+        const user = await User.findById(userId);
+        if (!user) return res.status(404).json({ msg: 'Usuário não encontrado' });
+
+        user.tasks.push({ description, checked: false });
+
+        await user.save();
+
+        res.status(201).json({ msg: 'Tarefa adicionada com sucesso!', tasks: user.tasks });
+    } catch (err) {
+        res.status(500).json({ msg: 'Erro ao adicionar tarefa', error: err.message });
+    }
+});
 
 
 app.patch('/createTasks/:id', checkToken , async (req, res) => {
@@ -119,93 +141,110 @@ app.patch('/createTasks/:id', checkToken , async (req, res) => {
     const idUser = req.params.id;
 
     try {
-
         const user = await User.findById(idUser, '-password');
+
         if (!user) {
             return res.status(404).json({ msg: 'Usuário não encontrado!' });
         }
-        if (!newTasks || Object.keys(newTasks).length === 0) {
-            return res.status(400).json({ msg: 'campo não pode estar vazio!' })
+
+        if (!newTasks || newTasks.length === 0) {
+            return res.status(400).json({ msg: 'Campo não pode estar vazio!' });
         }
 
         if (!Array.isArray(user.tasks)) {
             user.tasks = [];
         }
 
-        user.tasks = user.tasks.concat(newTasks)
+        const tasksConverted = newTasks.map(tarefa => {
 
-        await user.save(); // a=salva as alteraçoes
+            if (typeof tarefa === 'string') {
+                return { description: tarefa, checked: false };
+            }
 
-        res.status(200).json({ msg: 'Tarefa criada com sucesso!' })
+            if (typeof tarefa === 'object' && tarefa.description) {
+                return {
+                    description: tarefa.description,
+                    checked: tarefa.checked ?? false
+                };
+            }
+            return null;
+        }).filter(Boolean);
 
+        user.tasks = user.tasks.concat(tasksConverted);
 
+        await user.save();
+
+        res.status(200).json({ msg: 'Tarefa criada com sucesso!' });
     } catch (err) {
         console.error(err);
         res.status(500).json({ msg: 'Erro ao criar tarefa', error: err.message });
     }
-})
+});
 
-app.put('/editTask/:id/:index', async (req, res) => {
-    const userId = req.params.id;
-    const index = parseInt(req.params.index); // índice da tarefa a ser editada
-    const { newTask } = req.body; // o novo conteúdo da tarefa
-
-    if (!newTask) {
-        return res.status(400).json({ msg: 'Nova tarefa não enviada no corpo da requisição!' });
-    }
+app.patch('/toggleTask/:userId/:taskId', checkToken, async (req, res) => {
+    const { userId, taskId } = req.params;
 
     try {
-        const user = await User.findById(userId, '-password');
-        if (!user) {
-            return res.status(404).json({ msg: 'Usuário não encontrado!' });
-        }
+        const user = await User.findById(userId);
+        if (!user) return res.status(404).json({ msg: 'Usuário não encontrado' });
 
-        if (!Array.isArray(user.tasks)) {
-            return res.status(400).json({ msg: 'Usuário não possui tarefas!' });
-        }
+        const task = user.tasks.id(taskId);
+        if (!task) return res.status(404).json({ msg: 'Tarefa não encontrada' });
 
-        if (index < 0 || index >= user.tasks.length) {
-            return res.status(400).json({ msg: 'Índice da tarefa inválido!' });
-        }
-
-        // atualiza a tarefa específica
-        user.tasks[index] = newTask;
+        task.checked = !task.checked;
 
         await user.save();
 
-        res.status(200).json({ msg: 'Tarefa atualizada com sucesso!', tasks: user.tasks });
+        res.json({ msg: 'Status da tarefa atualizado com sucesso!', task });
     } catch (err) {
-        console.error(err);
+        res.status(500).json({ msg: 'Erro ao atualizar tarefa.', error: err.message });
+    }
+});
+
+
+app.put('/editTask/:userId/:taskId', checkToken , async (req, res) => {
+    const { userId, taskId } = req.params;
+    const { description } = req.body;
+
+    if (!description || description.trim() === '') {
+        return res.status(400).json({ msg: 'Descrição da tarefa é obrigatória' });
+    }
+
+    try {
+        const user = await User.findById(userId);
+        if (!user) return res.status(404).json({ msg: 'Usuário não encontrado' });
+
+        const task = user.tasks.id(taskId);
+        if (!task) return res.status(404).json({ msg: 'Tarefa não encontrada' });
+
+        task.description = description;
+
+        await user.save();
+
+        res.json({ msg: 'Descrição da tarefa atualizada com sucesso!', task });
+    } catch (err) {
         res.status(500).json({ msg: 'Erro ao atualizar tarefa', error: err.message });
     }
 });
 
-app.delete('/deleteTask/:id/:index', checkToken , async (req, res) => {
-    const userId = req.params.id;
-    const index = parseInt(req.params.index);
+
+app.delete('/deleteTask/:userId/:taskId', checkToken , async (req, res) => {
+    const { userId, taskId } = req.params;
 
     try {
-        const user = await User.findById(userId, '-password');
+        const user = await User.findById(userId);
+        if (!user) return res.status(404).json({ msg: 'Usuário não encontrado' });
 
-        if (!user) {
-            return res.status(404).json({msg: 'usuário não encontrado!'});
-        }
-
-        if(isNaN(index) || index < 0 || index >= user.tasks.length) {
-            return res.status(400).json({msg: 'index inválido!'});
-        }
-
-        user.tasks.splice(index, 1);
+        user.tasks = user.tasks.filter(task => task._id.toString() !== taskId);
 
         await user.save();
 
-        res.status(200).json({msg: 'task excluida com sucesso!'});
+        res.json({ msg: 'Tarefa removida com sucesso!', tasks: user.tasks });
     } catch (err) {
-        console.error('erro ao deletar tarefa', err);
+        res.status(500).json({ msg: 'Erro ao remover tarefa.', error: err.message });
     }
-
-
 });
+
 
 const DbPassword = process.env.DB_PASSWORD;
 const DbUser = process.env.DB_USER;
