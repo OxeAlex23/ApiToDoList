@@ -250,7 +250,7 @@ const DbPassword = process.env.DB_PASSWORD;
 const DbUser = process.env.DB_USER;
 
 mongoose.connect(`mongodb+srv://${DbUser}:${DbPassword}@apitodolist.ubykyp2.mongodb.net/?retryWrites=true&w=majority&appName=ApiToDoList`).then(() => {
-    app.listen(3000);
+    app.listen(process.env.PORT);
     console.log('conect to bd')
 }).catch((err) => console.error(err));
 
